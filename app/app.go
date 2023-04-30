@@ -13,6 +13,7 @@ var globalStock int = 180
 var localStock int = 40
 var seuil int = 25
 var siteId int
+var pendingRequest bool
 
 func handleSCStart() {
 	//Traitement du stock local et global
@@ -22,6 +23,8 @@ func handleSCStart() {
 
 	//Envoi de la libération
 	Send(SCEnd, siteId, siteId, -1, globalStock)
+
+	pendingRequest = false
 }
 
 func compare_seuil_stock() {
@@ -29,8 +32,9 @@ func compare_seuil_stock() {
 	for {
 		localStock--
 		time.Sleep(time.Duration(rand.Int() * 100))
-		if localStock < seuil {
+		if localStock < seuil && !pendingRequest {
 			Send(SCRequest, siteId, siteId, -1, -1)
+			pendingRequest = true
 		}
 	}
 }
@@ -67,6 +71,8 @@ func main() {
 		fmt.Println("Erreur lors de la sélection du site à controler (-n)")
 		os.Exit(1)
 	}
+
+	pendingRequest = false
 
 	// Lancement des deux go routines
 

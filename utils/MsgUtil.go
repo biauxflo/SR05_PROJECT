@@ -52,7 +52,7 @@ func msg_send(msg string) {
 func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int) {
 	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock}
 	l := log.New(os.Stderr, "", 0)
-	l.Println(strconv.Itoa(siteId) + EncodeMessage(message))
+	l.Println(strconv.Itoa(sender) + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
