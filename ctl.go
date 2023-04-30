@@ -31,7 +31,6 @@ type Record struct {
 
 var Tab []Record
 var horloge int
-var globalStock int
 var nbSite int
 var siteId int
 
@@ -62,8 +61,7 @@ func handleSCRequest() {
 func handleSCRelease(stock int) {
 	horloge++
 	Tab[nbSite-1] = Record{Release, horloge}
-	globalStock -= stock
-	// TODO : SendAll(release,horloge,globalStock)
+	// TODO : SendAll(release,horloge,stock)
 }
 
 func handleRequest(h int, sender int) {
