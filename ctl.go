@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 type Record struct {
@@ -122,6 +123,13 @@ func waitMessages() {
 	}
 }
 
+func request() {
+	time.Sleep(1000)
+	if siteId == 1 {
+		SendAll(Request, siteId, 1, 0)
+	}
+}
+
 func main() {
 
 	flag.IntVar(&siteId, "n", 0, "Numéro du site à contrôler.")
@@ -143,4 +151,6 @@ func main() {
 	horloge = 0
 
 	go waitMessages()
+
+	request()
 }
