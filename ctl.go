@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 type Record struct {
@@ -24,6 +25,11 @@ func max(a int, b int) int {
 }
 
 func canEnterCriticalSection() bool {
+
+	if Tab[siteId-1].Type != Request {
+		return false
+	}
+
 	// Check if there is an older request pending
 	for k := 1; k <= nbSite; k++ {
 		isACKorRequest := Tab[k-1].Type == Request || Tab[k-1].Type == ACK
@@ -113,12 +119,19 @@ func handleMessage(message Message) {
 func waitMessages() {
 	for {
 		message := Receive()
-		if message.Receiver == 0 || message.Receiver == siteId {
+		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
 			handleMessage(message)
 		}
 		if mustForward(message) {
 			Forward(message)
 		}
+	}
+}
+
+func request() {
+	time.Sleep(1000)
+	if siteId == 1 {
+		SendAll(Request, siteId, 1, 0)
 	}
 }
 
@@ -143,4 +156,8 @@ func main() {
 	horloge = 0
 
 	go waitMessages()
+
+	request()
+
+	select {}
 }
