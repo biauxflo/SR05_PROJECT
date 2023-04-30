@@ -4,33 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+
+	"./MsgUtil"
 )
-
-type MessageType int
-
-const (
-	Release MessageType = iota
-	ACK
-	Request
-	SCRequest
-	SCStart
-	SCEnd
-)
-
-type Message struct {
-	Type       MessageType
-	Sender     int
-	Receiver   int
-	ClockValue int
-}
 
 type Record struct {
-	Type       MessageType
+	Type       MsgUtil.MessageType
 	ClockValue int
 }
 
 var Tab []Record
 var horloge int
+var globalStock int
 var nbSite int
 var siteId int
 
@@ -44,7 +30,7 @@ func max(a int, b int) int {
 func canEnterCriticalSection() bool {
 	// Check if there is an older request pending
 	for k := 1; k <= nbSite; k++ {
-		if (k != siteId && Tab[k-1].Type == Request) && (((Tab[k-1].ClockValue) == (Tab[nbSite-1].ClockValue) && (k < nbSite)) || ((Tab[k-1].ClockValue) < (Tab[nbSite-1].ClockValue))) {
+		if (k != siteId && Tab[k-1].Type == MsgUtil.Request) && (((Tab[k-1].ClockValue) == (Tab[nbSite-1].ClockValue) && (k < nbSite)) || ((Tab[k-1].ClockValue) < (Tab[nbSite-1].ClockValue))) {
 			return false
 		}
 	}
@@ -54,19 +40,24 @@ func canEnterCriticalSection() bool {
 
 func handleSCRequest() {
 	horloge++
-	Tab[nbSite-1] = Record{Request, horloge}
-	// TODO : SendAll(request,horloge)
+	Tab[nbSite-1] = Record{MsgUtil.Request, horloge}
+	MsgUtil.SendAll(siteId, horloge)
 }
 
-func handleSCRelease(stock int) {
+func handleSCRelease(sender int, receiver int, stock int) {
 	horloge++
-	Tab[nbSite-1] = Record{Release, horloge}
-	// TODO : SendAll(release,horloge,stock)
+	Tab[nbSite-1] = Record{MsgUtil.Release, horloge}
+	globalStock -= stock
+	if siteId == receiver {
+		MsgUtil.SendAllRelease(sender, receiver, stock)
+	} else if siteId != sender {
+		MsgUtil.Send(sender, horloge, receiver, stock)
+	}
 }
 
 func handleRequest(h int, sender int) {
 	horloge = max(horloge, h) + 1
-	Tab[sender-1] = Record{Request, h}
+	Tab[sender-1] = Record{MsgUtil.Request, h}
 	// TODO : Send(ack, siteId, sender, horloge)
 	if canEnterCriticalSection() {
 		// TODO : Send appli DébutSC
@@ -79,7 +70,7 @@ func handleRelease(h int) {
 	horloge = max(horloge, h) + 1
 
 	// Mettre à jour le tableau Tab
-	Tab[siteId-1] = Record{Release, h}
+	Tab[siteId-1] = Record{MsgUtil.Release, h}
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
@@ -94,8 +85,8 @@ func handleAck(h int, sender int) {
 	horloge = max(horloge, h) + 1
 
 	// Mettre à jour le tableau Tab ssi il n'est pas en attente de requete
-	if Tab[sender-1].Type != Request {
-		Tab[sender-1] = Record{ACK, h}
+	if Tab[sender-1].Type != MsgUtil.Request {
+		Tab[sender-1] = Record{MsgUtil.ACK, h}
 	}
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
@@ -108,19 +99,22 @@ func handleAck(h int, sender int) {
 func handleMessage(message string) {
 	// Décoder le message
 	// TODO
-	msgType, h, sender, stockValue := decodeMessage(message)
+	msgType, _ := MsgUtil.DecodeMessageType(MsgUtil.Findval(message, "Type"))
+	h, _ := strconv.Atoi(MsgUtil.Findval(message, "ClockValue"))
+	sender, _ := strconv.Atoi(MsgUtil.Findval(message, "Sender"))
+	stockValue, _ := strconv.Atoi(MsgUtil.Findval(message, "StockValue"))
 
 	// Traiter le message en fonction de son type
 	switch msgType {
-	case SCRequest:
+	case MsgUtil.SCRequest:
 		handleSCRequest()
-	case SCEnd:
-		handleSCRelease(stockValue)
-	case Request:
+	case MsgUtil.SCEnd:
+		handleSCRelease(siteId, h, stockValue)
+	case MsgUtil.Request:
 		handleRequest(h, sender)
-	case Release:
+	case MsgUtil.Release:
 		handleRelease(h)
-	case ACK:
+	case MsgUtil.ACK:
 		handleAck(h, sender)
 	}
 }
@@ -139,14 +133,17 @@ func main() {
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
 	for k := 0; k < nbSite; k++ {
-		Tab[k] = Record{Release, 0}
+		Tab[k] = Record{MsgUtil.Release, 0}
 	}
 
 	// Initialiser l'horloge
 	horloge = 0
 
+	// Initialiser le stock
+	globalStock = 50
+
 	// Lancer la goroutine pour lire les messages sur stdin
-	// TODO : go readInput()
+	go MsgUtil.Receive()
 
 	// Attendre indéfiniment
 	select {}
