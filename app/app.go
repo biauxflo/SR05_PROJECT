@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"time"
+	"../utils"
 )
 
 // Initialiser les variables
