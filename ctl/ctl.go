@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"../utils"
+	"utils"
 )
 
 type Record struct {
-	Type       MessageType
+	Type       utils.MessageType
 	ClockValue int
 }
 
@@ -27,13 +27,13 @@ func max(a int, b int) int {
 
 func canEnterCriticalSection() bool {
 
-	if Tab[siteId-1].Type != Request {
+	if Tab[siteId-1].Type != utils.Request {
 		return false
 	}
 
 	// Check if there is an older request pending
 	for k := 1; k <= nbSite; k++ {
-		isACKorRequest := Tab[k-1].Type == Request || Tab[k-1].Type == ACK
+		isACKorRequest := Tab[k-1].Type == utils.Request || Tab[k-1].Type == utils.ACK
 		isSmallestEstampille := ((Tab[k-1].ClockValue) == (Tab[nbSite-1].ClockValue) && (k < nbSite)) || ((Tab[k-1].ClockValue) < (Tab[nbSite-1].ClockValue))
 		if (k != siteId && isACKorRequest) && (isSmallestEstampille) {
 			return false
@@ -43,28 +43,28 @@ func canEnterCriticalSection() bool {
 	return true
 }
 
-func mustForward(message Message) bool {
+func mustForward(message utils.Message) bool {
 	return message.Sender != siteId
 }
 
 func handleSCRequest() {
 	horloge++
-	Tab[nbSite-1] = Record{Request, horloge}
-	SendAll(ACK, siteId, horloge, -1)
+	Tab[nbSite-1] = Record{utils.Request, horloge}
+	utils.SendAll(utils.ACK, siteId, horloge, -1)
 }
 
 func handleSCRelease(stock int) {
 	horloge++
-	Tab[nbSite-1] = Record{Release, horloge}
-	SendAll(Release, siteId, horloge, stock)
+	Tab[nbSite-1] = Record{utils.Release, horloge}
+	utils.SendAll(utils.Release, siteId, horloge, stock)
 }
 
 func handleRequest(h int, sender int) {
 	horloge = max(horloge, h) + 1
-	Tab[sender-1] = Record{Request, h}
-	Send(ACK, siteId, sender, horloge, -1)
+	Tab[sender-1] = Record{utils.Request, h}
+	utils.Send(utils.ACK, siteId, sender, horloge, -1)
 	if canEnterCriticalSection() {
-		Send(SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
 	}
 }
 
@@ -74,12 +74,12 @@ func handleRelease(h int) {
 	horloge = max(horloge, h) + 1
 
 	// Mettre à jour le tableau Tab
-	Tab[siteId-1] = Record{Release, h}
+	Tab[siteId-1] = Record{utils.Release, h}
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		Send(SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
 	}
 }
 
@@ -89,42 +89,42 @@ func handleAck(h int, sender int) {
 	horloge = max(horloge, h) + 1
 
 	// Mettre à jour le tableau Tab ssi il n'est pas en attente de requete
-	if Tab[sender-1].Type != Request {
-		Tab[sender-1] = Record{ACK, h}
+	if Tab[sender-1].Type != utils.Request {
+		Tab[sender-1] = Record{utils.ACK, h}
 	}
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		Send(SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
 	}
 }
 
-func handleMessage(message Message) {
+func handleMessage(message utils.Message) {
 
 	// Traiter le message en fonction de son type
 	switch message.Type {
-	case SCRequest:
+	case utils.SCRequest:
 		handleSCRequest()
-	case SCEnd:
+	case utils.SCEnd:
 		handleSCRelease(message.GlobalStock)
-	case Request:
+	case utils.Request:
 		handleRequest(message.ClockValue, message.Sender)
-	case Release:
+	case utils.Release:
 		handleRelease(message.Sender)
-	case ACK:
+	case utils.ACK:
 		handleAck(message.ClockValue, message.Sender)
 	}
 }
 
 func waitMessages() {
 	for {
-		message := Receive()
+		message := utils.Receive()
 		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
 			handleMessage(message)
 		}
 		if mustForward(message) {
-			Forward(message)
+			utils.Forward(message)
 		}
 	}
 }
@@ -132,7 +132,7 @@ func waitMessages() {
 func request() {
 	time.Sleep(1000)
 	if siteId == 1 {
-		SendAll(Request, siteId, 1, 0)
+		utils.SendAll(utils.Request, siteId, 1, 0)
 	}
 }
 
@@ -150,7 +150,7 @@ func main() {
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
 	for k := 0; k < nbSite; k++ {
-		Tab[k] = Record{Release, 0}
+		Tab[k] = Record{utils.Release, 0}
 	}
 
 	// Initialiser l'horloge

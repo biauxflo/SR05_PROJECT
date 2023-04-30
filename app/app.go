@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"time"
-	"../utils"
+	"utils"
 )
 
 // Initialiser les variables
@@ -23,7 +23,7 @@ func handleSCStart() {
 	localStock = localStock + 10
 
 	//Envoi de la libération
-	Send(SCEnd, siteId, siteId, -1, globalStock)
+	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock)
 
 	pendingRequest = false
 }
@@ -34,7 +34,7 @@ func compare_seuil_stock() {
 		localStock--
 		time.Sleep(time.Duration(rand.Int() * 100))
 		if localStock < seuil && !pendingRequest {
-			Send(SCRequest, siteId, siteId, -1, -1)
+			utils.Send(utils.SCRequest, siteId, siteId, -1, -1)
 			pendingRequest = true
 		}
 	}
@@ -44,20 +44,20 @@ func handleRelease(newStock int) {
 	globalStock = newStock
 }
 
-func handleMessage(msgType MessageType) {
+func handleMessage(message utils.Message) {
 
 	// Traiter le message en fonction de son type
-	switch msgType {
-	case SCStart:
+	switch message.Type {
+	case utils.SCStart:
 		handleSCStart()
-	case Release:
-		handleRelease(newStock)
+	case utils.Release:
+		handleRelease(message.GlobalStock)
 	}
 }
 
 func waitMessages() {
 	for {
-		message := Receive()
+		message := utils.Receive()
 		if message.Sender == siteId && message.Receiver == siteId {
 			handleMessage(message)
 		}
