@@ -25,6 +25,11 @@ func max(a int, b int) int {
 }
 
 func canEnterCriticalSection() bool {
+
+	if Tab[siteId-1].Type != Request {
+		return false
+	}
+
 	// Check if there is an older request pending
 	for k := 1; k <= nbSite; k++ {
 		isACKorRequest := Tab[k-1].Type == Request || Tab[k-1].Type == ACK
@@ -114,7 +119,7 @@ func handleMessage(message Message) {
 func waitMessages() {
 	for {
 		message := Receive()
-		if message.Receiver == 0 || message.Receiver == siteId {
+		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
 			handleMessage(message)
 		}
 		if mustForward(message) {
@@ -153,4 +158,6 @@ func main() {
 	go waitMessages()
 
 	request()
+
+	select {}
 }

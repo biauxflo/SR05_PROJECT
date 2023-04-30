@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,18 +46,18 @@ func EncodeMessage(msg Message) string {
 }
 
 func msg_send(msg string) {
-	mutex.Lock()
 	fmt.Println(msg)
-	mutex.Unlock()
 }
 
-func Send(msgType MessageType, sender int, clockValue int, receiver int, globalStock int) {
+func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int) {
 	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock}
+	l := log.New(os.Stderr, "", 0)
+	l.Println(strconv.Itoa(siteId) + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
 func SendAll(msgType MessageType, sender int, clockValue int, globalStock int) {
-	Send(msgType, sender, clockValue, 0, globalStock)
+	Send(msgType, sender, 0, clockValue, globalStock)
 }
 
 func Findval(msg string, key string) string {
