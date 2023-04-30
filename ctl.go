@@ -145,9 +145,6 @@ func main() {
 	// Initialiser l'horloge
 	horloge = 0
 
-	// Initialiser le stock
-	globalStock = 50
-
 	// Lancer la goroutine pour lire les messages sur stdin
 	// TODO : go readInput()
 
