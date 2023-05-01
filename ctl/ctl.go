@@ -111,19 +111,53 @@ func handleAck(h int, sender int) {
 	}
 }
 
+
+func changeColor() {
+    if couleur == utils.Blanc {
+        couleur = utils.Rouge
+    } else {
+        couleur = utils.Blanc
+    }
+}
+
+// Fonction pour gérer la réception d'un message de début de snapshot
+func handleSnapStart(stock int) {
+	//si une snapshot n'est pas en cours et que l'on est bien le site 1 qui s'occupe des snapshots
+	if (snapshotIsFinished && siteId == 1){
+		snapshotIsFinished = false
+		//on change de couleur pour signaliser une nouvelle snapshot
+		changeColor()
+
+		//on stock l'état local
+		EG[siteId-1] = Tab
+		GlobalStocks[siteId-1] = stock
+
+		nbEtatsAttendus = nbSite - 1
+		nbMsgAttendus = bilan
+
+	}
+}
+
 func handleMessage(message utils.Message) {
+
 	// Traiter le message en fonction de son type
 	switch message.Type {
 	case utils.SCRequest:
-		handleSCRequest()
+		handleSCRequest(message.Color)
 	case utils.SCEnd:
-		handleSCRelease(message.GlobalStock)
+		handleSCRelease(message.GlobalStock,message.Color)
 	case utils.Request:
-		handleRequest(message.ClockValue, message.Sender)
+		handleRequest(message.ClockValue, message.Sender,message.Color)
 	case utils.Release:
-		handleRelease(message.ClockValue, message.Sender, message.GlobalStock)
+		handleRelease(message.Sender,message.Color)
 	case utils.ACK:
-		handleAck(message.ClockValue, message.Sender)
+		handleAck(message.ClockValue, message.Sender,message.Color)
+	case utils.Etat:
+		handleEtat()
+	case utils.PrePost:
+		handlePrePost()
+	case utils.SnapStart:
+		handleSnapStart(message.GlobalStock)
 	}
 }
 
