@@ -1,18 +1,20 @@
-package app
+package main
 
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 	"utils"
 )
 
 // Initialiser les variables
 var globalStock int = 180
-var localStock int = 40
-var seuil int = 25
+var localStock int = 10
+var seuil int = 5
 var siteId int
 var pendingRequest bool
 
@@ -32,10 +34,16 @@ func compare_seuil_stock() {
 
 	for {
 		localStock--
-		time.Sleep(time.Duration(rand.Int() * 100))
+		l := log.New(os.Stderr, "", 0)
+		l.Println(strconv.Itoa(siteId) + " " + strconv.Itoa(localStock))
+		r := rand.Intn(5)
+		time.Sleep(time.Duration(r) * time.Second)
 		if localStock < seuil && !pendingRequest {
 			utils.Send(utils.SCRequest, siteId, siteId, -1, -1)
 			pendingRequest = true
+		}
+		if localStock <= 0 {
+			os.Exit(0)
 		}
 	}
 }

@@ -52,7 +52,7 @@ func msg_send(msg string) {
 func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int) {
 	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock}
 	l := log.New(os.Stderr, "", 0)
-	l.Println(strconv.Itoa(sender) + EncodeMessage(message))
+	l.Println(strconv.Itoa(sender) + " --> " + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
@@ -85,8 +85,8 @@ func Receive() Message {
 	var msgTypeRcv int
 	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv int
 
-	fmt.Scanln(&rcvmsg)
-	mutex.Lock()
+	fmt.Scanln(&rcvmsg)``
+	//mutex.Lock()
 
 	msgType = Findval(rcvmsg, "Type")
 	sender = Findval(rcvmsg, "Sender")
@@ -109,10 +109,10 @@ func Receive() Message {
 		globalStockRcv, _ = strconv.Atoi(globalStock)
 	}
 
-	mutex.Unlock()
+	//mutex.Unlock()
 	rcvmsg = ""
-
-	return Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv}
+	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv}
+	return message
 }
 
 func Forward(message Message) {
