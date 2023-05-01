@@ -14,10 +14,18 @@ type Record struct {
 }
 
 var Tab []Record
-var mat [][]Record
+var EG [][]Record
+var GlobalStocks []int
+var PrePost []utils.MessageType
 var horloge int
 var nbSite int
 var siteId int
+var couleur utils.Couleur
+var bilan int
+var nbEtatsAttendus int
+var nbMsgAttendus int
+var snapshotIsFinished bool
+
 
 func max(a int, b int) int {
 	if a > b {
@@ -48,29 +56,29 @@ func mustForward(message utils.Message) bool {
 	return message.Sender != siteId
 }
 
-func handleSCRequest() {
+func handleSCRequest(color utils.Couleur) {
 	horloge++
-	Tab[nbSite-1] = Record{utils.Request, horloge}
-	utils.SendAll(utils.ACK, siteId, horloge, -1)
+	Tab[siteId-1] = Record{utils.Request, horloge}
+	utils.SendAll(utils.Request, siteId, horloge, -1, color, utils.Request)
 }
 
-func handleSCRelease(stock int) {
+func handleSCRelease(stock int, color utils.Couleur) {
 	horloge++
-	Tab[nbSite-1] = Record{utils.Release, horloge}
-	utils.SendAll(utils.Release, siteId, horloge, stock)
+	Tab[siteId-1] = Record{utils.Release, horloge}
+	utils.SendAll(utils.Release, siteId, horloge, stock, color, utils.Release)
 }
 
-func handleRequest(h int, sender int) {
+func handleRequest(h int, sender int, color utils.Couleur) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = Record{utils.Request, h}
-	utils.Send(utils.ACK, siteId, sender, horloge, -1)
+	utils.Send(utils.ACK, siteId, sender, horloge, -1, color, utils.ACK)
 	if canEnterCriticalSection() {
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, utils.SCStart)
 	}
 }
 
 // Fonction pour gérer la réception d'un message de libération
-func handleRelease(h int) {
+func handleRelease(h int, color utils.Couleur) {
 	// Mettre à jour la date logique du site local
 	horloge = max(horloge, h) + 1
 
@@ -80,12 +88,12 @@ func handleRelease(h int) {
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, utils.SCStart)
 	}
 }
 
 // Fonction pour gérer la réception d'un message d'accusé
-func handleAck(h int, sender int) {
+func handleAck(h int, sender int, color utils.Couleur) {
 	// Mettre à jour la date logique du site local
 	horloge = max(horloge, h) + 1
 
@@ -97,7 +105,34 @@ func handleAck(h int, sender int) {
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, utils.SCStart)
+	}
+}
+
+//fonction permettant d'alterner entre les couleur d'un site
+func changeColor() {
+    if couleur == utils.Blanc {
+        couleur = utils.Rouge
+    } else {
+        couleur = utils.Blanc
+    }
+}
+
+// Fonction pour gérer la réception d'un message de début de snapshot
+func handleSnapStart(stock int) {
+	//si une snapshot n'est pas en cours et que l'on est bien le site 1 qui s'occupe des snapshots
+	if (snapshotIsFinished && siteId == 1){
+		snapshotIsFinished = false
+		//on change de couleur pour signaliser une nouvelle snapshot
+		changeColor()
+
+		//on stock l'état local
+		EG[siteId-1] = Tab
+		GlobalStocks[siteId-1] = stock
+
+		nbEtatsAttendus = nbSite - 1
+		nbMsgAttendus = bilan
+
 	}
 }
 
@@ -106,15 +141,21 @@ func handleMessage(message utils.Message) {
 	// Traiter le message en fonction de son type
 	switch message.Type {
 	case utils.SCRequest:
-		handleSCRequest()
+		handleSCRequest(message.Color)
 	case utils.SCEnd:
-		handleSCRelease(message.GlobalStock)
+		handleSCRelease(message.GlobalStock,message.Color)
 	case utils.Request:
-		handleRequest(message.ClockValue, message.Sender)
+		handleRequest(message.ClockValue, message.Sender,message.Color)
 	case utils.Release:
-		handleRelease(message.Sender)
+		handleRelease(message.Sender,message.Color)
 	case utils.ACK:
-		handleAck(message.ClockValue, message.Sender)
+		handleAck(message.ClockValue, message.Sender,message.Color)
+	case utils.Etat:
+		handleEtat()
+	case utils.PrePost:
+		handlePrePost()
+	case utils.SnapStart:
+		handleSnapStart(message.GlobalStock)
 	}
 }
 
@@ -122,20 +163,20 @@ func waitMessages() {
 	for {
 		message := utils.Receive()
 		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
+			if message.Type != utils.SnapStart || message.Type != utils.PrePost || message.Type != utils.Etat{
+					bilan--
+			}
 			handleMessage(message)
 		}
 		if mustForward(message) {
+			if message.Type != utils.PrePost || message.Type != utils.Etat{
+					bilan++
+			}
 			utils.Forward(message)
 		}
 	}
 }
 
-func request() {
-	time.Sleep(1000)
-	if siteId == 1 {
-		utils.SendAll(utils.Request, siteId, 1, 0)
-	}
-}
 
 func main() {
 
@@ -150,18 +191,26 @@ func main() {
 	// Initialiser le programme
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
-	mat = make([][]Record, nbSite)
+	EG = make([][]Record, nbSite)
+	GlobalStocks = make([]int, nbSite)
 	for k := 0; k < nbSite; k++ {
 		Tab[k] = Record{utils.Release, 0}
-		matrice[i] = make([]Record, nbSite)
+		EG[k] = make([]Record, nbSite)
+		GlobalStocks[k] = 0
 	}
 
 	// Initialiser l'horloge
 	horloge = 0
+	//initialiser la couleur du site
+	couleur = utils.Blanc
+	//initialisations pour la snapshot
+	bilan = 0
+	snapshotIsFinished = true
+	nbMsgAttendus = 0
+	nbEtatsAttendus = 0
 
 	go waitMessages()
 
-	request()
 
 	select {}
 }
