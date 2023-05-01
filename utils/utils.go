@@ -9,6 +9,14 @@ import (
 	"sync"
 )
 
+
+type Couleur int
+
+const (
+	Blanc MessageType = iota
+	Rouge
+)
+
 type MessageType int
 
 const (
@@ -21,6 +29,7 @@ const (
 	SCUpdate
 	Prepost
 	Etat
+	SnapStart
 )
 
 type Message struct {
@@ -29,6 +38,7 @@ type Message struct {
 	Receiver    int
 	ClockValue  int
 	GlobalStock int
+	Color 			Couleur
 }
 
 type PrepostMessage struct {
@@ -52,7 +62,8 @@ func EncodeMessage(msg Message) string {
 	receiver := msg_format("Receiver", strconv.Itoa(msg.Receiver))
 	clock := msg_format("ClockValue", strconv.Itoa(msg.ClockValue))
 	stock := msg_format("GlobalStock", strconv.Itoa(msg.GlobalStock))
-	return msgType + sender + receiver + clock + stock
+	color := msg_format("Color", strconv.Itoa(int(msg.Color)))
+	return msgType + sender + receiver + clock + stock + color
 }
 
 func EncodePrepost(prep PrepostMessage) string {
@@ -69,15 +80,15 @@ func msg_send(msg string) {
 	mutex.Unlock()
 }
 
-func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int) {
-	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock}
+func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int, color Couleur) {
+	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock, Color: color}
 	l := log.New(os.Stderr, "", 0)
 	l.Println(strconv.Itoa(sender) + " --> " + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
-func SendAll(msgType MessageType, sender int, clockValue int, globalStock int) {
-	Send(msgType, sender, 0, clockValue, globalStock)
+func SendAll(msgType MessageType, sender int, clockValue int, globalStock int, color Couleur) {
+	Send(msgType, sender, 0, clockValue, globalStock, color)
 }
 
 func Findval(msg string, key string) string {
@@ -101,9 +112,9 @@ func Findval(msg string, key string) string {
 }
 
 func Receive() (Message, PrepostMessage) {
-	var rcvmsg, msgType, sender, clockValue, receiver, globalStock string
+	var rcvmsg, msgType, sender, clockValue, receiver, globalStock, color string
 	var msgTypeRcv int
-	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv int
+	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv, colorRcv int
 	var prep PrepostMessage
 
 	fmt.Scanln(&rcvmsg)
@@ -129,10 +140,13 @@ func Receive() (Message, PrepostMessage) {
 	if globalStock != "" {
 		globalStockRcv, _ = strconv.Atoi(globalStock)
 	}
+	if color != "" {
+		colorRcv, _ = strconv.Atoi(color)
+	}
 
 	mutex.Unlock()
 	rcvmsg = ""
-	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv}
+	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv, Color: Couleur(colorRcv)}
 
 	isPrep := Findval(rcvmsg, "IsPrep")
 	if isPrep != "" {
@@ -146,9 +160,7 @@ func Receive() (Message, PrepostMessage) {
 
 		prep.InitialMessage = message
 	}
-
 	return message, prep
-
 }
 
 func Forward(message Message) {
