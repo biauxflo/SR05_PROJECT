@@ -15,9 +15,18 @@ type Record struct {
 }
 
 var Tab []Record
+var EG []string
+var GlobalStocks []int
+var LocalStocks []int
+var PrePost []utils.PrepostMessage
 var horloge int
 var nbSite int
 var siteId int
+var couleur utils.Couleur
+var bilan int
+var nbEtatsAttendus int
+var nbMsgAttendus int
+var snapshotIsFinished bool
 
 func printTab() {
 	l := log.New(os.Stderr, "", 0)
