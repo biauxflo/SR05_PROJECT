@@ -150,10 +150,10 @@ func main() {
 	// Initialiser le programme
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
-	mat = make([][]MaStructure, nbSite)
+	mat = make([][]Record, nbSite)
 	for k := 0; k < nbSite; k++ {
 		Tab[k] = Record{utils.Release, 0}
-		matrice[i] = make([]MaStructure, nbSite)
+		matrice[i] = make([]Record, nbSite)
 	}
 
 	// Initialiser l'horloge
