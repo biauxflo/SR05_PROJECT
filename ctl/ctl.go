@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 	"utils"
 )
 
@@ -130,22 +129,20 @@ func handleMessage(message utils.Message) {
 
 func waitMessages() {
 	for {
-		message := utils.Receive()
-		l := log.New(os.Stderr, "", 0)
-		l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
-		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
-			handleMessage(message)
-		}
-		if mustForward(message) {
-			utils.Forward(message)
-		}
-	}
-}
+		message, prep := utils.Receive()
 
-func request() {
-	time.Sleep(1000)
-	if siteId == 1 {
-		utils.SendAll(utils.Request, siteId, 1, 0)
+		if prep.Type == utils.Prepost {
+
+		} else {
+			l := log.New(os.Stderr, "", 0)
+			l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
+			if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
+				handleMessage(message)
+			}
+			if mustForward(message) {
+				utils.Forward(message)
+			}
+		}
 	}
 }
 

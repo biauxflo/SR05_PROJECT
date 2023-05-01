@@ -19,6 +19,8 @@ const (
 	SCStart
 	SCEnd
 	SCUpdate
+	Prepost
+	Etat
 )
 
 type Message struct {
@@ -27,6 +29,13 @@ type Message struct {
 	Receiver    int
 	ClockValue  int
 	GlobalStock int
+}
+
+type PrepostMessage struct {
+	Type           MessageType
+	Sender         int
+	Receiver       int
+	InitialMessage Message
 }
 
 var fieldsep = "/"
@@ -46,8 +55,18 @@ func EncodeMessage(msg Message) string {
 	return msgType + sender + receiver + clock + stock
 }
 
+func EncodePrepost(prep PrepostMessage) string {
+	msgType := msg_format("IsPrep", strconv.Itoa(int(prep.Type)))
+	sender := msg_format("PrepSender", strconv.Itoa(prep.Sender))
+	receiver := msg_format("PrepReceiver", strconv.Itoa(prep.Receiver))
+	message := EncodeMessage(prep.InitialMessage)
+	return msgType + sender + receiver + message
+}
+
 func msg_send(msg string) {
+	mutex.Lock()
 	fmt.Println(msg)
+	mutex.Unlock()
 }
 
 func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int) {
@@ -81,10 +100,11 @@ func Findval(msg string, key string) string {
 	return ""
 }
 
-func Receive() Message {
+func Receive() (Message, PrepostMessage) {
 	var rcvmsg, msgType, sender, clockValue, receiver, globalStock string
 	var msgTypeRcv int
 	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv int
+	var prep PrepostMessage
 
 	fmt.Scanln(&rcvmsg)
 	mutex.Lock()
@@ -92,7 +112,7 @@ func Receive() Message {
 	msgType = Findval(rcvmsg, "Type")
 	sender = Findval(rcvmsg, "Sender")
 	clockValue = Findval(rcvmsg, "ClockValue")
-	receiver = Findval(rcvmsg, "Receiver")
+	sender = Findval(rcvmsg, "Sender")
 	globalStock = Findval(rcvmsg, "GlobalStock")
 	if msgType != "" {
 		msgTypeRcv, _ = strconv.Atoi(msgType)
@@ -113,7 +133,22 @@ func Receive() Message {
 	mutex.Unlock()
 	rcvmsg = ""
 	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv}
-	return message
+
+	isPrep := Findval(rcvmsg, "IsPrep")
+	if isPrep != "" {
+		prep.Type = Prepost
+
+		prepSender := Findval(rcvmsg, "Sender")
+		prepReceiver := Findval(rcvmsg, "Receiver")
+
+		prep.Receiver, _ = strconv.Atoi(prepReceiver)
+		prep.Sender, _ = strconv.Atoi(prepSender)
+
+		prep.InitialMessage = message
+	}
+
+	return message, prep
+
 }
 
 func Forward(message Message) {
