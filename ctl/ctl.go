@@ -56,6 +56,14 @@ func writeSnapshotInFile() {
             log.Fatal("Impossible d'ecrire dans le fichier", err)
         }
     }
+		count :=0
+		for _, msg := range PrePost {
+			count++
+        _, err := file.WriteString(fmt.Sprintf("Message PrePost numero : %d : [ Type: %d, Sender: %d, Receiver: %d, ClockValue: %d GlobalStock: %d Color: %d	LocalStock: %d	Bilan: %d	Tab: %s ]\n",count, msg.InitialMessage.Type, msg.InitialMessage.Sender, msg.InitialMessage.Receiver, msg.InitialMessage.ClockValue, msg.InitialMessage.GlobalStock, msg.InitialMessage.Color, msg.InitialMessage.LocalStock, msg.InitialMessage.Bilan, msg.InitialMessage.Tab))
+        if err != nil {
+            log.Fatal("Cannot write to file", err)
+        }
+    }
 }
 
 func max(a int, b int) int {
