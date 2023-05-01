@@ -149,7 +149,7 @@ func handleAck(h int, sender int, color utils.Couleur) {
 }
 
 // Fonction pour gérer la réception d'un message de début de snapshot
-func handleSnapStart(stock int) {
+func handleSnapStart(globalStock int, localStock int) {
 	//si une snapshot n'est pas en cours et que l'on est bien le site 1 qui s'occupe des snapshots
 	if (siteId == 1){
 		//on change de couleur pour signaliser une nouvelle snapshot
@@ -157,7 +157,8 @@ func handleSnapStart(stock int) {
 
 		//on stock l'état local
 		EG[siteId-1] = printVec(Tab)
-		GlobalStocks[siteId-1] = stock
+		GlobalStocks[siteId-1] = globalStock
+		LocalStocks[siteId-1] = localStock
 
 		nbEtatsAttendus = nbSite - 1
 		nbMsgAttendus = bilan
@@ -205,7 +206,7 @@ func handleMessage(message utils.Message) {
 	case utils.Etat:
 		handleEtat(message.Sender, message.Bilan, message.LocalStock, message.GlobalStock, message.Tab)
 	case utils.SnapStart:
-		handleSnapStart(message.GlobalStock)
+		handleSnapStart(message.GlobalStock, message.LocalStock)
 	case utils.SnapInfo:
 		handleSnapInfo(message.GlobalStock,message.LocalStock)
 	}

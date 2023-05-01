@@ -28,7 +28,7 @@ func handleSCStart() {
 	l.Println(strconv.Itoa(siteId) + "-> Livraison effectuée : Nouveau stock : " + strconv.Itoa(localStock) + "- Nouveau stock global: " + strconv.Itoa(globalStock))
 
 	//Envoi de la libération
-	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock)
+	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock,utils.Neutre, -1, -1, "")
 
 	pendingRequest = false
 }
@@ -42,13 +42,13 @@ func compare_seuil_stock() {
 		r := rand.Intn(5)
 		time.Sleep(time.Duration(r) * time.Second)
 		if localStock < seuil && !pendingRequest {
-			utils.Send(utils.SCRequest, siteId, siteId, -1, -1)
+			utils.Send(utils.SCRequest, siteId, siteId, -1, -1, utils.Neutre, -1, -1, "")
 			pendingRequest = true
 		}
 		if localStock <= 0 {
 			//on prend une snapshot si on est le site 1
 			if siteId == 1 {
-				utils.send(utils.SnapStart,siteId,siteId,-1,globalStock,utils.Neutre,localStock)
+				utils.Send(utils.SnapStart,siteId,siteId,-1,globalStock,utils.Neutre,localStock, -1, "")
 			}
 			os.Exit(0)
 		}
@@ -61,8 +61,8 @@ func handleUpdate(newStock int) {
 	l.Println("Maj du stock global :  " + strconv.Itoa(globalStock))
 }
 
-func handleUpdate(newStock int) {
-	utils.send(utils.SnapInfo,siteId,siteId,-1,globalStock,utils.Neutre,localStock)
+func handleSnapInfo() {
+	utils.Send(utils.SnapInfo,siteId,siteId,-1,globalStock,utils.Neutre,localStock, -1, "")
 }
 
 func handleMessage(message utils.Message) {
@@ -80,7 +80,7 @@ func handleMessage(message utils.Message) {
 
 func waitMessages() {
 	for {
-		message := utils.Receive()
+		message, _ := utils.Receive()
 		if message.Sender == siteId && message.Receiver == siteId {
 			handleMessage(message)
 		}
