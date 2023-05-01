@@ -26,7 +26,6 @@ var couleur utils.Couleur
 var bilan int
 var nbEtatsAttendus int
 var nbMsgAttendus int
-var snapshotIsFinished bool
 
 func printTab() {
 	l := log.New(os.Stderr, "", 0)
@@ -42,6 +41,21 @@ func printVec(tab []Record) string {
 		 resultat += strconv.Itoa(int(tab[k].Type)) + " " + strconv.Itoa(tab[k].ClockValue)
 	}
 	return resultat
+}
+
+func writeSnapshotInFile() {
+    file, err := os.Create("Snapshot.txt")
+    if err != nil {
+        log.Fatal("Impossible de creer le fichier", err)
+    }
+    defer file.Close()
+
+    for i := 0; i < nbSite; i++ {
+        _, err := fmt.Fprintf(file, "Site %d :  Stock local = %d stock global = %d  tableau horloges = %s\n", i+1, LocalStocks[i], GlobalStocks[i], EG[i])
+        if err != nil {
+            log.Fatal("Impossible d'ecrire dans le fichier", err)
+        }
+    }
 }
 
 func max(a int, b int) int {
@@ -75,21 +89,24 @@ func mustForward(message utils.Message) bool {
 func handleSCRequest(color utils.Couleur) {
 	horloge++
 	Tab[siteId-1] = Record{utils.Request, horloge}
-	utils.SendAll(utils.Request, siteId, horloge, -1, color)
+	bilan++
+	utils.SendAll(utils.Request, siteId, horloge, -1, color, -1, -1, "")
 }
 
 func handleSCRelease(stock int, color utils.Couleur) {
 	horloge++
 	Tab[siteId-1] = Record{utils.Release, horloge}
-	utils.SendAll(utils.Release, siteId, horloge, stock, color)
+	bilan++
+	utils.SendAll(utils.Release, siteId, horloge, stock, color, -1, -1, "")
 }
 
 func handleRequest(h int, sender int, color utils.Couleur) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = Record{utils.Request, h}
-	utils.Send(utils.ACK, siteId, sender, horloge, -1, color)
+	bilan++
+	utils.Send(utils.ACK, siteId, sender, horloge, -1, color, -1, -1, "")
 	if canEnterCriticalSection() {
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, -1, -1, "")
 	}
 }
 
@@ -101,13 +118,15 @@ func handleRelease(h int, sender int, globalStock int, color utils.Couleur) {
 	// Mettre à jour le tableau Tab
 	Tab[sender-1] = Record{utils.Release, h}
 
+	bilan--
 	// Mettre à jour la valeur du stock dans l'application
-	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock, color)
+	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock, color, -1, -1, "")
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
+		bilan--
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, -1, -1, "")
 	}
 }
 
@@ -123,27 +142,18 @@ func handleAck(h int, sender int, color utils.Couleur) {
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
+		bilan--
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color, -1, -1, "")
 	}
-}
-
-
-func changeColor() {
-    if couleur == utils.Blanc {
-        couleur = utils.Rouge
-    } else {
-        couleur = utils.Blanc
-    }
 }
 
 // Fonction pour gérer la réception d'un message de début de snapshot
 func handleSnapStart(stock int) {
 	//si une snapshot n'est pas en cours et que l'on est bien le site 1 qui s'occupe des snapshots
-	if (snapshotIsFinished && siteId == 1){
-		snapshotIsFinished = false
+	if (siteId == 1){
 		//on change de couleur pour signaliser une nouvelle snapshot
-		changeColor()
+		couleur = utils.Rouge
 
 		//on stock l'état local
 		EG[siteId-1] = printVec(Tab)
@@ -151,7 +161,30 @@ func handleSnapStart(stock int) {
 
 		nbEtatsAttendus = nbSite - 1
 		nbMsgAttendus = bilan
+	}
+}
 
+// Fonction pour gérer la réception d'un message de reception des infos de l'appli
+func handleSnapInfo(globalstock int, localstock int) {
+	stringTab := printVec(Tab)
+	utils.Send(utils.Etat, siteId, 1, -1, globalstock, couleur, localstock, bilan, stringTab)
+}
+
+func handleEtat(sender int, bilan int, localStock int, globalStock int, tab string) {
+	if siteId == 1{
+		//si on est le site 1 alors on le traite sinon on ne fait que de le Forward
+		nbEtatsAttendus--
+		nbMsgAttendus += bilan
+
+		//on sauvegarde l'état fournie
+		LocalStocks[sender-1] = localStock
+		GlobalStocks[sender-1] = globalStock
+		EG[sender-1] = tab
+
+		if nbEtatsAttendus == 0 && nbMsgAttendus == 0{
+			//fin du programme on écrit la snapshot dans le fichier
+			writeSnapshotInFile()
+		}
 	}
 }
 
@@ -170,11 +203,11 @@ func handleMessage(message utils.Message) {
 	case utils.ACK:
 		handleAck(message.ClockValue, message.Sender,message.Color)
 	case utils.Etat:
-		handleEtat()
-	case utils.Prepost:
-		handlePrePost()
+		handleEtat(message.Sender, message.Bilan, message.LocalStock, message.GlobalStock, message.Tab)
 	case utils.SnapStart:
 		handleSnapStart(message.GlobalStock)
+	case utils.SnapInfo:
+		handleSnapInfo(message.GlobalStock,message.LocalStock)
 	}
 }
 
@@ -182,11 +215,37 @@ func waitMessages() {
 	for {
 		message, prep := utils.Receive()
 
+		//handlePrePost
 		if prep.Type == utils.Prepost {
-
+			if siteId == 1{
+				//on ajoute le messsage prépost à la liste de sauvegarde
+				PrePost = append(PrePost, prep)
+				nbMsgAttendus--
+				if nbEtatsAttendus == 0 && nbMsgAttendus == 0{
+					//fin du programme on écrit la snapshot dans le fichier
+					writeSnapshotInFile()
+				}
+			}else{
+				//on forward si on est pas le site 1
+				utils.ForwardPrepost(prep)
+			}
 		} else {
 			l := log.New(os.Stderr, "", 0)
 			l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
+			if (message.Sender == siteId){
+				//on réduit le bilan dans le cas ou le message a parcouru tout l'anneau
+				bilan--
+			}
+			if message.Color != utils.Rouge && couleur == utils.Blanc{
+				//première réception de couleur rouge il faut donc prendre une snapshot
+				couleur = utils.Rouge
+				//on envoi un message de type info pour demander les info à l'appli avant de l'envoyer au site 1
+				utils.Send(utils.SnapInfo, siteId, siteId, horloge, -1, couleur, -1, -1, "")
+			}
+			if message.Color == utils.Blanc && couleur == utils.Rouge{
+				//cas message est un prépost
+				utils.SendPrePost(siteId,1,message)
+			}
 			if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
 				handleMessage(message)
 			}
@@ -210,6 +269,8 @@ func main() {
 	// Initialiser le programme
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
+	EG = make([]string, nbSite)
+	GlobalStocks = make([]int, nbSite)
 	for k := 0; k < nbSite; k++ {
 		Tab[k] = Record{utils.Release, 0}
 	}
@@ -220,7 +281,6 @@ func main() {
 	couleur = utils.Blanc
 	//initialisations pour la snapshot
 	bilan = 0
-	snapshotIsFinished = true
 	nbMsgAttendus = 0
 	nbEtatsAttendus = 0
 

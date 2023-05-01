@@ -15,6 +15,7 @@ type Couleur int
 const (
 	Blanc Couleur = iota
 	Rouge
+	Neutre
 )
 
 type MessageType int
@@ -30,6 +31,7 @@ const (
 	Prepost
 	Etat
 	SnapStart
+	SnapInfo
 )
 
 type Message struct {
@@ -39,6 +41,9 @@ type Message struct {
 	ClockValue  int
 	GlobalStock int
 	Color 			Couleur
+	LocalStock  int
+	Bilan 			int
+	Tab  				string
 }
 
 type PrepostMessage struct {
@@ -61,9 +66,12 @@ func EncodeMessage(msg Message) string {
 	sender := msg_format("Sender", strconv.Itoa(msg.Sender))
 	receiver := msg_format("Receiver", strconv.Itoa(msg.Receiver))
 	clock := msg_format("ClockValue", strconv.Itoa(msg.ClockValue))
-	stock := msg_format("GlobalStock", strconv.Itoa(msg.GlobalStock))
+	globalStock := msg_format("GlobalStock", strconv.Itoa(msg.GlobalStock))
 	color := msg_format("Color", strconv.Itoa(int(msg.Color)))
-	return msgType + sender + receiver + clock + stock + color
+	localstock :=  msg_format("LocalStock", strconv.Itoa(msg.LocalStock))
+	bilan := msg_format("Bilan", strconv.Itoa(msg.Bilan))
+	tab :=  msg_format("Tab", msg.Tab)
+	return msgType + sender + receiver + clock + globalStock + color + localstock + bilan + tab
 }
 
 func EncodePrepost(prep PrepostMessage) string {
@@ -80,15 +88,22 @@ func msg_send(msg string) {
 	mutex.Unlock()
 }
 
-func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int, color Couleur) {
-	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock, Color: color}
+func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int, color Couleur, localstock int, bilan int, tab string) {
+	message := Message{Type: msgType, Sender: sender, ClockValue: clockValue, Receiver: receiver, GlobalStock: globalStock, Color: color, LocalStock: localstock, Bilan: bilan, Tab: tab}
 	l := log.New(os.Stderr, "", 0)
 	l.Println(strconv.Itoa(sender) + " --> " + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
-func SendAll(msgType MessageType, sender int, clockValue int, globalStock int, color Couleur) {
-	Send(msgType, sender, 0, clockValue, globalStock, color)
+func SendAll(msgType MessageType, sender int, clockValue int, globalStock int, color Couleur, localstock int, bilan int, tab string) {
+	Send(msgType, sender, 0, clockValue, globalStock, color, localstock, bilan, tab)
+}
+
+func SendPrePost(sender int, receiver int, message Message) {
+	newmessage := PrepostMessage{Type: Prepost, Sender: sender, Receiver: receiver, InitialMessage: message}
+	k := log.New(os.Stderr, "", 0)
+	k.Println(strconv.Itoa(sender) + " --> " + EncodePrepost(newmessage))
+	msg_send(EncodeMessage(message))
 }
 
 func Findval(msg string, key string) string {
@@ -112,9 +127,9 @@ func Findval(msg string, key string) string {
 }
 
 func Receive() (Message, PrepostMessage) {
-	var rcvmsg, msgType, sender, clockValue, receiver, globalStock, color string
+	var rcvmsg, msgType, sender, clockValue, receiver, globalStock, color, localstock, bilan, tab string
 	var msgTypeRcv int
-	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv, colorRcv int
+	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv, colorRcv, localstockRcv, bilanRcv int
 	var prep PrepostMessage
 
 	fmt.Scanln(&rcvmsg)
@@ -125,6 +140,10 @@ func Receive() (Message, PrepostMessage) {
 	clockValue = Findval(rcvmsg, "ClockValue")
 	sender = Findval(rcvmsg, "Sender")
 	globalStock = Findval(rcvmsg, "GlobalStock")
+	color = Findval(rcvmsg, "Color")
+	localstock = Findval(rcvmsg, "LocalStock")
+	bilan = Findval(rcvmsg,"Bilan")
+	tab = Findval(rcvmsg, "Tab")
 	if msgType != "" {
 		msgTypeRcv, _ = strconv.Atoi(msgType)
 	}
@@ -143,10 +162,16 @@ func Receive() (Message, PrepostMessage) {
 	if color != "" {
 		colorRcv, _ = strconv.Atoi(color)
 	}
+	if localstock != "" {
+		localstockRcv, _ = strconv.Atoi(localstock)
+	}
+	if bilan != "" {
+		bilanRcv, _ = strconv.Atoi(bilan)
+	}
 
 	mutex.Unlock()
 	rcvmsg = ""
-	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv, Color: Couleur(colorRcv)}
+	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv, Color: Couleur(colorRcv), LocalStock: localstockRcv, Bilan: bilanRcv, Tab: tab}
 
 	isPrep := Findval(rcvmsg, "IsPrep")
 	if isPrep != "" {
@@ -165,4 +190,8 @@ func Receive() (Message, PrepostMessage) {
 
 func Forward(message Message) {
 	msg_send(EncodeMessage(message))
+}
+
+func ForwardPrepost(message PrepostMessage) {
+	msg_send(EncodePrepost(message))
 }
