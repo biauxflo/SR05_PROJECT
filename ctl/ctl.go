@@ -14,6 +14,7 @@ type Record struct {
 }
 
 var Tab []Record
+var mat [][]Record
 var horloge int
 var nbSite int
 var siteId int
@@ -149,8 +150,10 @@ func main() {
 	// Initialiser le programme
 	nbSite = 3 // number of sites
 	Tab = make([]Record, nbSite)
+	mat = make([][]MaStructure, nbSite)
 	for k := 0; k < nbSite; k++ {
 		Tab[k] = Record{utils.Release, 0}
+		matrice[i] = make([]MaStructure, nbSite)
 	}
 
 	// Initialiser l'horloge
