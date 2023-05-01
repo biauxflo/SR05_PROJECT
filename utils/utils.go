@@ -13,7 +13,7 @@ import (
 type Couleur int
 
 const (
-	Blanc MessageType = iota
+	Blanc Couleur = iota
 	Rouge
 )
 

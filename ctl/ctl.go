@@ -36,6 +36,14 @@ func printTab() {
 	}
 }
 
+func printVec(tab []Record) string {
+	var resultat string
+	for k := 0; k < nbSite; k++ {
+		 resultat += strconv.Itoa(int(tab[k].Type)) + " " + strconv.Itoa(tab[k].ClockValue)
+	}
+	return resultat
+}
+
 func max(a int, b int) int {
 	if a > b {
 		return a
@@ -64,29 +72,29 @@ func mustForward(message utils.Message) bool {
 	return message.Sender != siteId && message.Receiver != siteId
 }
 
-func handleSCRequest() {
+func handleSCRequest(color utils.Couleur) {
 	horloge++
 	Tab[siteId-1] = Record{utils.Request, horloge}
-	utils.SendAll(utils.Request, siteId, horloge, -1)
+	utils.SendAll(utils.Request, siteId, horloge, -1, color)
 }
 
-func handleSCRelease(stock int) {
+func handleSCRelease(stock int, color utils.Couleur) {
 	horloge++
 	Tab[siteId-1] = Record{utils.Release, horloge}
-	utils.SendAll(utils.Release, siteId, horloge, stock)
+	utils.SendAll(utils.Release, siteId, horloge, stock, color)
 }
 
-func handleRequest(h int, sender int) {
+func handleRequest(h int, sender int, color utils.Couleur) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = Record{utils.Request, h}
-	utils.Send(utils.ACK, siteId, sender, horloge, -1)
+	utils.Send(utils.ACK, siteId, sender, horloge, -1, color)
 	if canEnterCriticalSection() {
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
 	}
 }
 
 // Fonction pour gérer la réception d'un message de libération
-func handleRelease(h int, sender int, globalStock int) {
+func handleRelease(h int, sender int, globalStock int, color utils.Couleur) {
 	// Mettre à jour la date logique du site local
 	horloge = max(horloge, h) + 1
 
@@ -94,17 +102,17 @@ func handleRelease(h int, sender int, globalStock int) {
 	Tab[sender-1] = Record{utils.Release, h}
 
 	// Mettre à jour la valeur du stock dans l'application
-	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock)
+	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock, color)
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
 	}
 }
 
 // Fonction pour gérer la réception d'un message d'accusé
-func handleAck(h int, sender int) {
+func handleAck(h int, sender int, color utils.Couleur) {
 	// Mettre à jour la date logique du site local
 	horloge = max(horloge, h) + 1
 
@@ -116,7 +124,7 @@ func handleAck(h int, sender int) {
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, color)
 	}
 }
 
@@ -138,7 +146,7 @@ func handleSnapStart(stock int) {
 		changeColor()
 
 		//on stock l'état local
-		EG[siteId-1] = Tab
+		EG[siteId-1] = printVec(Tab)
 		GlobalStocks[siteId-1] = stock
 
 		nbEtatsAttendus = nbSite - 1
@@ -158,12 +166,12 @@ func handleMessage(message utils.Message) {
 	case utils.Request:
 		handleRequest(message.ClockValue, message.Sender,message.Color)
 	case utils.Release:
-		handleRelease(message.Sender,message.Color)
+		handleRelease(message.ClockValue,message.Sender,message.GlobalStock,message.Color)
 	case utils.ACK:
 		handleAck(message.ClockValue, message.Sender,message.Color)
 	case utils.Etat:
 		handleEtat()
-	case utils.PrePost:
+	case utils.Prepost:
 		handlePrePost()
 	case utils.SnapStart:
 		handleSnapStart(message.GlobalStock)
@@ -208,6 +216,14 @@ func main() {
 
 	// Initialiser l'horloge
 	horloge = 0
+	//initialiser la couleur du site
+	couleur = utils.Blanc
+	//initialisations pour la snapshot
+	bilan = 0
+	snapshotIsFinished = true
+	nbMsgAttendus = 0
+	nbEtatsAttendus = 0
+
 
 	go waitMessages()
 
