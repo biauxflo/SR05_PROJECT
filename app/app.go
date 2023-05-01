@@ -24,6 +24,9 @@ func handleSCStart() {
 	globalStock = globalStock - 10
 	localStock = localStock + 10
 
+	l := log.New(os.Stderr, "", 0)
+	l.Println(strconv.Itoa(siteId) + "-> Livraison effectuée : Nouveau stock : " + strconv.Itoa(localStock) + "- Nouveau stock global: " + strconv.Itoa(globalStock))
+
 	//Envoi de la libération
 	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock)
 
@@ -48,8 +51,10 @@ func compare_seuil_stock() {
 	}
 }
 
-func handleRelease(newStock int) {
+func handleUpdate(newStock int) {
 	globalStock = newStock
+	l := log.New(os.Stderr, "", 0)
+	l.Println("Maj du stock global :  " + strconv.Itoa(globalStock))
 }
 
 func handleMessage(message utils.Message) {
@@ -58,8 +63,8 @@ func handleMessage(message utils.Message) {
 	switch message.Type {
 	case utils.SCStart:
 		handleSCStart()
-	case utils.Release:
-		handleRelease(message.GlobalStock)
+	case utils.SCUpdate:
+		handleUpdate(message.GlobalStock)
 	}
 }
 

@@ -59,21 +59,18 @@ func mustForward(message utils.Message) bool {
 func handleSCRequest() {
 	horloge++
 	Tab[siteId-1] = Record{utils.Request, horloge}
-	printTab()
 	utils.SendAll(utils.Request, siteId, horloge, -1)
 }
 
 func handleSCRelease(stock int) {
 	horloge++
 	Tab[siteId-1] = Record{utils.Release, horloge}
-	printTab()
 	utils.SendAll(utils.Release, siteId, horloge, stock)
 }
 
 func handleRequest(h int, sender int) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = Record{utils.Request, h}
-	printTab()
 	utils.Send(utils.ACK, siteId, sender, horloge, -1)
 	if canEnterCriticalSection() {
 		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
@@ -81,13 +78,15 @@ func handleRequest(h int, sender int) {
 }
 
 // Fonction pour gérer la réception d'un message de libération
-func handleRelease(h int, sender int) {
+func handleRelease(h int, sender int, globalStock int) {
 	// Mettre à jour la date logique du site local
 	horloge = max(horloge, h) + 1
 
 	// Mettre à jour le tableau Tab
 	Tab[sender-1] = Record{utils.Release, h}
-	printTab()
+
+	// Mettre à jour la valeur du stock dans l'application
+	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock)
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
@@ -104,7 +103,6 @@ func handleAck(h int, sender int) {
 	// Mettre à jour le tableau Tab ssi il n'est pas en attente de requete
 	if Tab[sender-1].Type != utils.Request {
 		Tab[sender-1] = Record{utils.ACK, h}
-		printTab()
 	}
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
@@ -115,7 +113,6 @@ func handleAck(h int, sender int) {
 }
 
 func handleMessage(message utils.Message) {
-	printTab()
 	// Traiter le message en fonction de son type
 	switch message.Type {
 	case utils.SCRequest:
@@ -125,7 +122,7 @@ func handleMessage(message utils.Message) {
 	case utils.Request:
 		handleRequest(message.ClockValue, message.Sender)
 	case utils.Release:
-		handleRelease(message.ClockValue, message.Sender)
+		handleRelease(message.ClockValue, message.Sender, message.GlobalStock)
 	case utils.ACK:
 		handleAck(message.ClockValue, message.Sender)
 	}
@@ -135,7 +132,7 @@ func waitMessages() {
 	for {
 		message := utils.Receive()
 		l := log.New(os.Stderr, "", 0)
-		l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender))
+		l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
 		if (message.Receiver == 0 && message.Sender != siteId) || message.Receiver == siteId {
 			handleMessage(message)
 		}

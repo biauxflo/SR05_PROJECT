@@ -18,6 +18,7 @@ const (
 	SCRequest
 	SCStart
 	SCEnd
+	SCUpdate
 )
 
 type Message struct {
@@ -40,7 +41,7 @@ func EncodeMessage(msg Message) string {
 	msgType := msg_format("Type", strconv.Itoa(int(msg.Type)))
 	sender := msg_format("Sender", strconv.Itoa(msg.Sender))
 	receiver := msg_format("Receiver", strconv.Itoa(msg.Receiver))
-	clock := msg_format("ClockCount", strconv.Itoa(msg.ClockValue))
+	clock := msg_format("ClockValue", strconv.Itoa(msg.ClockValue))
 	stock := msg_format("GlobalStock", strconv.Itoa(msg.GlobalStock))
 	return msgType + sender + receiver + clock + stock
 }
@@ -85,8 +86,8 @@ func Receive() Message {
 	var msgTypeRcv int
 	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv int
 
-	fmt.Scanln(&rcvmsg)``
-	//mutex.Lock()
+	fmt.Scanln(&rcvmsg)
+	mutex.Lock()
 
 	msgType = Findval(rcvmsg, "Type")
 	sender = Findval(rcvmsg, "Sender")
@@ -109,7 +110,7 @@ func Receive() Message {
 		globalStockRcv, _ = strconv.Atoi(globalStock)
 	}
 
-	//mutex.Unlock()
+	mutex.Unlock()
 	rcvmsg = ""
 	message := Message{Type: MessageType(msgTypeRcv), Sender: senderRcv, Receiver: receiverRcv, ClockValue: clockValueRcv, GlobalStock: globalStockRcv}
 	return message
