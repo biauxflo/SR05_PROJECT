@@ -38,7 +38,7 @@ func printTab() {
 func printVec(tab []Record) string {
 	var resultat string
 	for k := 0; k < nbSite; k++ {
-		 resultat += strconv.Itoa(int(tab[k].Type)) + " " + strconv.Itoa(tab[k].ClockValue)
+		 resultat += strconv.Itoa(int(tab[k].Type)) + "," + strconv.Itoa(tab[k].ClockValue)
 	}
 	return resultat
 }
