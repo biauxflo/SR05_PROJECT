@@ -2,13 +2,12 @@ package utils
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 )
 
+// Couleur utilisée dans l'alorithme de prise d'instantané.
 type Couleur int
 
 const (
@@ -17,6 +16,7 @@ const (
 	Neutre
 )
 
+// MessageType Type de messages émis et reçus au sein de l'application
 type MessageType int
 
 const (
@@ -33,11 +33,13 @@ const (
 	Etat
 )
 
+// Estampille
 type Record struct {
 	Type       MessageType
 	ClockValue int
 }
 
+// Message émis dans l'application
 type Message struct {
 	Type        MessageType
 	Sender      int
@@ -56,6 +58,7 @@ var keyvalsep = "="
 var prepostSeparator = "@"
 var mutex = &sync.Mutex{}
 
+// Renvoie le tableau d'estampille sous forme de string.
 func printVec(tab []Record) string {
 	var resultat string
 	for k := 0; k < len(tab); k++ {
@@ -64,6 +67,7 @@ func printVec(tab []Record) string {
 	return resultat
 }
 
+// Parse le tableau d'estampille depuis une string.
 func parseVec(vec string) []Record {
 	var tab []Record
 	div := strings.Count(vec, ";")
@@ -81,14 +85,17 @@ func parseVec(vec string) []Record {
 	return nil
 }
 
+// Formatte la string d'un champ du message
 func msg_format(key string, val string) string {
 	return fieldsep + key + keyvalsep + val
 }
 
+// Formatte le champ contenant le message prepost d'un message
 func prepost_format(val string) string {
 	return prepostSeparator + "PrepostMessage" + keyvalsep + val + prepostSeparator
 }
 
+// Encode un message sans le champ prepost
 func EncodeSimpleMessage(msg Message) string {
 	msgType := msg_format("Type", strconv.Itoa(int(msg.Type)))
 	sender := msg_format("Sender", strconv.Itoa(msg.Sender))
@@ -101,16 +108,19 @@ func EncodeSimpleMessage(msg Message) string {
 	return msgType + sender + receiver + clock + stock + color + etat + bilan
 }
 
+// Encode un message complet
 func EncodeMessage(msg Message) string {
 	encodedMsg := EncodeSimpleMessage(msg)
 	prepost := prepost_format(msg.PrepostMessage)
 	return encodedMsg + prepost
 }
 
+// Effectue l'ecriture du message dans le pipe
 func msg_send(msg string) {
 	fmt.Println(msg)
 }
 
+// Envoi un message
 func Send(msgType MessageType, sender int, receiver int, clockValue int, globalStock int, couleur Couleur, etat []Record, bilan int, prepost string) {
 	message := Message{
 		Type:           msgType,
@@ -123,15 +133,15 @@ func Send(msgType MessageType, sender int, receiver int, clockValue int, globalS
 		PrepostMessage: prepost,
 		Bilan:          bilan,
 	}
-	l := log.New(os.Stderr, "", 0)
-	l.Println(strconv.Itoa(sender) + " --> " + EncodeMessage(message))
 	msg_send(EncodeMessage(message))
 }
 
+// Envoi un message à tous les sites de l'application
 func SendAll(msgType MessageType, sender int, clockValue int, globalStock int) {
 	Send(msgType, sender, 0, clockValue, globalStock, 2, nil, 0, "")
 }
 
+// Parse une valeur spécifique au sein d'une chaine de texte formatée.
 func findVal(msg string, key string) string {
 	if len(msg) < len(fieldsep+key+keyvalsep) {
 		return ""
@@ -152,6 +162,7 @@ func findVal(msg string, key string) string {
 	return ""
 }
 
+// Parse le message prepost contenu dans une chaine de message formattée
 func findPrepost(msg string) string {
 	if len(msg) < len(prepostSeparator+"PrepostMessage"+keyvalsep) {
 		return ""
@@ -172,13 +183,18 @@ func findPrepost(msg string) string {
 	return ""
 }
 
+// Gère la reception et le parsing d'un message dans le pipe
 func Receive() Message {
 	var rcvmsg string
 	var senderRcv, clockValueRcv, receiverRcv, globalStockRcv, msgTypeRcv, colorRcv, bilanRcv int
 	var etatRcv []Record
 
+	// Reception
 	fmt.Scanln(&rcvmsg)
 
+	mutex.Lock()
+
+	// Parsing
 	msgType := findVal(rcvmsg, "Type")
 	sender := findVal(rcvmsg, "Sender")
 	clockValue := findVal(rcvmsg, "ClockValue")
@@ -213,7 +229,9 @@ func Receive() Message {
 		bilanRcv, _ = strconv.Atoi(bilan)
 	}
 
+	mutex.Unlock()
 	rcvmsg = ""
+
 	message := Message{
 		Type:           MessageType(msgTypeRcv),
 		Sender:         senderRcv,
@@ -228,6 +246,7 @@ func Receive() Message {
 	return message
 }
 
+// Effectue le forwarding d'un message sur l'anneau
 func Forward(message Message) {
 	msg_send(EncodeMessage(message))
 }

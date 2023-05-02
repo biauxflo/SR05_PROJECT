@@ -1,0 +1,6 @@
+Site 1 :  Stock local = 0 stock global = 0  tableau horloges = 0,5;1,2;1,2;
+Site 2 :  Stock local = 12 stock global = 0  tableau horloges = 0,5;2,7;1,8;
+Site 3 :  Stock local = 0 stock global = 0  tableau horloges = 0,5;2,7;0,0;
+Messages Prepost du Site 1 :  
+Messages Prepost du Site 2 :  
+Messages Prepost du Site 3 :  

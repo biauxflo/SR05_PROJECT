@@ -9,6 +9,7 @@ import (
 	"utils"
 )
 
+// Déclaration des variables.
 var Tab []utils.Record
 var horloge int
 var nbSite int
@@ -23,14 +24,7 @@ var prepost []string
 var NbEtatsAttendus int
 var NbMessagesAttendus int
 
-func printTab() {
-	l := log.New(os.Stderr, "", 0)
-	l.Println(strconv.Itoa(siteId) + ": ")
-	for k := 0; k < nbSite; k++ {
-		l.Print(Tab[k])
-	}
-}
-
+// Donne le maximum entre 2 entiers.
 func max(a int, b int) int {
 	if a > b {
 		return a
@@ -38,7 +32,9 @@ func max(a int, b int) int {
 	return b
 }
 
+// Renvoi l'état global du site sous forme de string.
 func printEG(tab []utils.Record) string {
+
 	var resultat string
 	for k := 0; k < len(tab); k++ {
 		resultat += strconv.Itoa(int(tab[k].Type)) + "," + strconv.Itoa(tab[k].ClockValue) + ";"
@@ -46,38 +42,36 @@ func printEG(tab []utils.Record) string {
 	return resultat
 }
 
-
-
+// Enregistrement de l'instantanée sous forme de fichier texte.
 func writeSnapshotInFile() {
-    file, err := os.Create("Snapshot.txt")
-    if err != nil {
-        log.Fatal("Impossible de creer le fichier", err)
-    }
-    defer file.Close()
+	file, err := os.Create("Snapshot.txt")
+	if err != nil {
+		log.Fatal("Impossible de creer le fichier", err)
+	}
+	defer file.Close()
 
-    for i := 0; i < nbSite; i++ {
-        _, err := fmt.Fprintf(file, "Site %d :  Stock local = %d stock global = %d  tableau horloges = %s\n", i+1, localStocks[i], globalStocks[i], printEG(EG[i]))
-        if err != nil {
-            log.Fatal("Impossible d'ecrire dans le fichier", err)
-        }
-    }
+	for i := 0; i < nbSite; i++ {
+		_, err := fmt.Fprintf(file, "Site %d :  Stock local = %d stock global = %d  tableau horloges = %s\n", i+1, localStocks[i], globalStocks[i], printEG(EG[i]))
+		if err != nil {
+			log.Fatal("Impossible d'ecrire dans le fichier", err)
+		}
+	}
 
-		for i := 0; i < nbSite; i++ {
-        _, err := fmt.Fprintf(file, "Messages Prepost du Site %d :  %s\n", i+1,prepost[i])
-        if err != nil {
-            log.Fatal("Impossible d'ecrire dans le fichier", err)
-        }
-    }
+	for i := 0; i < nbSite; i++ {
+		_, err := fmt.Fprintf(file, "Messages Prepost du Site %d :  %s\n", i+1, prepost[i])
+		if err != nil {
+			log.Fatal("Impossible d'ecrire dans le fichier", err)
+		}
+	}
 }
 
-
+// True si le site peut acceder à la section critique, false sinon.
 func canEnterCriticalSection() bool {
-
 	if Tab[siteId-1].Type != utils.Request {
 		return false
 	}
 
-	// Check if there is an older request pending
+	// Verifie si le site a l'estampille la plus basse.
 	for k := 1; k <= nbSite; k++ {
 		isSmallestEstampille := ((Tab[k-1].ClockValue) == (Tab[siteId-1].ClockValue) && (k < siteId)) || ((Tab[k-1].ClockValue) < (Tab[siteId-1].ClockValue))
 		if k != siteId && (isSmallestEstampille) {
@@ -88,10 +82,12 @@ func canEnterCriticalSection() bool {
 	return true
 }
 
+// True si le message reçu est à envoyer sur l'anneau, false sinon.
 func mustForward(message utils.Message) bool {
 	return message.Sender != siteId && message.Receiver != siteId
 }
 
+// Traitement d'une requête de section critique de l'application de base du site.
 func handleSCRequest() {
 	horloge++
 	Tab[siteId-1] = utils.Record{utils.Request, horloge}
@@ -99,12 +95,14 @@ func handleSCRequest() {
 	bilan = bilan + nbSite - 1
 }
 
+// Traitement d'une libération de section critique par l'application de base du site.
 func handleSCRelease(stock int) {
 	horloge++
 	Tab[siteId-1] = utils.Record{utils.Release, horloge}
 	utils.SendAll(utils.Release, siteId, horloge, stock)
 }
 
+// Traitement d'une requête de section critique par un autre site.
 func handleRequest(h int, sender int) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = utils.Record{utils.Request, h}
@@ -153,6 +151,7 @@ func handleAck(h int, sender int) {
 	}
 }
 
+// Traite la demande de lancement d'un instantané du système.
 func startSnapShot(globalStock int, localStock int) {
 	couleur = utils.Rouge
 	initiateur = true
@@ -164,36 +163,35 @@ func startSnapShot(globalStock int, localStock int) {
 	bilan++
 }
 
+// Traite la réception d'un message d'état d'un autre site.
 func handleEtat(sender int, etat []utils.Record, bilan int) {
 	NbMessagesAttendus += bilan
 	EG[sender-1] = etat
 	NbEtatsAttendus--
 
 	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
-		l := log.New(os.Stderr, "", 0)
-		l.Println("C'EST FINI ZEBI")
 		writeSnapshotInFile()
 	}
 }
 
+// Traite la réception d'un message prépost d'un autre site.
 func handlePrepost(sender int, prepostMessage string) {
 	NbMessagesAttendus--
 	prepost[sender] += prepostMessage + "\n"
 
 	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
-		l := log.New(os.Stderr, "", 0)
-		l.Println("C'EST FINI ZEBI")
 		writeSnapshotInFile()
 	}
 }
 
+// Traite la demande d'information de stock émise par l'application de base
 func handleStockRequest(globalStock int, localStock int) {
 	//CLOCK = LOCALSTOCK
 	utils.Send(utils.Etat, siteId, siteId, localStock, globalStock, couleur, Tab, bilan, "")
 }
 
+// Traiter le message en fonction de son type
 func handleMessage(message utils.Message) {
-	// Traiter le message en fonction de son type
 	switch message.Type {
 	case utils.SCRequest:
 		handleSCRequest()
@@ -221,11 +219,10 @@ func handleMessage(message utils.Message) {
 	}
 }
 
+// Routine attendant la reception d'un message et lançant le traitement du message
 func waitMessages() {
 	for {
 		message := utils.Receive()
-		l := log.New(os.Stderr, "", 0)
-		l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
 
 		if message.Couleur == utils.Blanc && couleur == utils.Rouge {
 			utils.Send(utils.SCStart, siteId, siteId, horloge, -1, couleur, Tab, bilan, utils.EncodeSimpleMessage(message))
@@ -283,7 +280,9 @@ func main() {
 	// Initialiser l'horloge
 	horloge = 0
 
+	// Lancement de la routine
 	go waitMessages()
 
+	// Attente infinie.
 	select {}
 }
