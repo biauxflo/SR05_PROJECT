@@ -145,6 +145,11 @@ func handleEtat(sender int, etat []utils.Record, bilan int) {
 func handlePrepost(sender int, prepostMessage string) {
 	NbMessagesAttendus--
 	prepost[sender] += prepostMessage + "\n"
+
+	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
+		l := log.New(os.Stderr, "", 0)
+		l.Println("C'EST FINI ZEBI")
+	}
 }
 
 func handleStockRequest(globalStock int, localStock int) {
@@ -238,7 +243,8 @@ func main() {
 
 	globalStocks = make([]int, nbSite)
 	localStocks = make([]int, nbSite)
-
+	prepost = make([]int, nbSite)
+	
 	// Initialiser l'horloge
 	horloge = 0
 
