@@ -38,6 +38,39 @@ func max(a int, b int) int {
 	return b
 }
 
+func printEG(tab []utils.Record) string {
+	var resultat string
+	for k := 0; k < len(tab); k++ {
+		resultat += strconv.Itoa(int(tab[k].Type)) + "," + strconv.Itoa(tab[k].ClockValue) + ";"
+	}
+	return resultat
+}
+
+
+
+func writeSnapshotInFile() {
+    file, err := os.Create("Snapshot.txt")
+    if err != nil {
+        log.Fatal("Impossible de creer le fichier", err)
+    }
+    defer file.Close()
+
+    for i := 0; i < nbSite; i++ {
+        _, err := fmt.Fprintf(file, "Site %d :  Stock local = %d stock global = %d  tableau horloges = %s\n", i+1, localStocks[i], globalStocks[i], printEG(EG[i]))
+        if err != nil {
+            log.Fatal("Impossible d'ecrire dans le fichier", err)
+        }
+    }
+
+		for i := 0; i < nbSite; i++ {
+        _, err := fmt.Fprintf(file, "Messages Prepost du Site %d :  %s\n", i+1,prepost[i])
+        if err != nil {
+            log.Fatal("Impossible d'ecrire dans le fichier", err)
+        }
+    }
+}
+
+
 func canEnterCriticalSection() bool {
 
 	if Tab[siteId-1].Type != utils.Request {
@@ -139,6 +172,7 @@ func handleEtat(sender int, etat []utils.Record, bilan int) {
 	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
 		l := log.New(os.Stderr, "", 0)
 		l.Println("C'EST FINI ZEBI")
+		writeSnapshotInFile()
 	}
 }
 
@@ -149,6 +183,7 @@ func handlePrepost(sender int, prepostMessage string) {
 	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
 		l := log.New(os.Stderr, "", 0)
 		l.Println("C'EST FINI ZEBI")
+		writeSnapshotInFile()
 	}
 }
 
@@ -243,8 +278,8 @@ func main() {
 
 	globalStocks = make([]int, nbSite)
 	localStocks = make([]int, nbSite)
-	prepost = make([]int, nbSite)
-	
+	prepost = make([]string, nbSite)
+
 	// Initialiser l'horloge
 	horloge = 0
 
