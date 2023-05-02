@@ -22,8 +22,10 @@ var snapshotInProgress bool
 func handleSCStart() {
 	//Traitement du stock local et global
 
-	globalStock = globalStock - 10
-	localStock = localStock + 10
+	if globalStock >= 10 {
+		globalStock = globalStock - 10
+		localStock = localStock + 10
+	}
 
 	l := log.New(os.Stderr, "", 0)
 	l.Println(strconv.Itoa(siteId) + "-> Livraison effectuée : Nouveau stock : " + strconv.Itoa(localStock) + "- Nouveau stock global: " + strconv.Itoa(globalStock))

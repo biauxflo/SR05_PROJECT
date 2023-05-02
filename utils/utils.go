@@ -59,20 +59,22 @@ var mutex = &sync.Mutex{}
 func printVec(tab []Record) string {
 	var resultat string
 	for k := 0; k < len(tab); k++ {
-		resultat += strconv.Itoa(int(tab[k].Type)) + " " + strconv.Itoa(tab[k].ClockValue)
+		resultat += strconv.Itoa(int(tab[k].Type)) + "," + strconv.Itoa(tab[k].ClockValue) + ";"
 	}
 	return resultat
 }
+
 func parseVec(vec string) []Record {
 	var tab []Record
-	if len(vec) >= 3 {
-		tab = make([]Record, len(vec)/3)
-		for k := 0; k < len(vec); k += 3 {
-			if k == 0 {
-				tab[k] = Record{MessageType(int(vec[k] - '0')), int(vec[k+2] - '0')}
-			} else {
-				tab[k/3] = Record{MessageType(int(vec[k] - '0')), int(vec[k+2] - '0')}
-			}
+	div := strings.Count(vec, ";")
+	if div >= 1 {
+		splitted := strings.Split(vec, ";")
+		tab = make([]Record, div)
+		for k := 0; k < div; k++ {
+			newSplit := strings.Split(splitted[k], ",")
+			msgType, _ := strconv.Atoi(newSplit[0])
+			clock, _ := strconv.Atoi(newSplit[1])
+			tab[k] = Record{MessageType(msgType), clock}
 		}
 		return tab
 	}

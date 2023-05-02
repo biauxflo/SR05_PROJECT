@@ -122,6 +122,10 @@ func handleAck(h int, sender int) {
 func startSnapShot() {
 	couleur = utils.Rouge
 	initiateur = true
+	EG = make([][]utils.Record, nbSite)
+	for k := 0; k < nbSite; k++ {
+		EG[k] = make([]utils.Record, nbSite)
+	}
 	EG[siteId-1] = Tab
 	NbEtatsAttendus = nbSite - 1
 	NbMessagesAttendus = bilan
