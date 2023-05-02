@@ -65,15 +65,18 @@ func printVec(tab []Record) string {
 }
 func parseVec(vec string) []Record {
 	var tab []Record
-	tab = make([]Record, len(vec)/3)
-	for k := 0; k <= len(vec); k += 3 {
-		if k == 0 {
-			tab[k] = Record{MessageType(int(vec[k])), int(vec[k+2])}
-		} else {
-			tab[k/3] = Record{MessageType(int(vec[k])), int(vec[k+2])}
+	if len(vec) >= 3 {
+		tab = make([]Record, len(vec)/3)
+		for k := 0; k < len(vec); k += 3 {
+			if k == 0 {
+				tab[k] = Record{MessageType(int(vec[k] - '0')), int(vec[k+2] - '0')}
+			} else {
+				tab[k/3] = Record{MessageType(int(vec[k] - '0')), int(vec[k+2] - '0')}
+			}
 		}
+		return tab
 	}
-	return tab
+	return nil
 }
 
 func msg_format(key string, val string) string {
@@ -173,7 +176,6 @@ func Receive() Message {
 	var etatRcv []Record
 
 	fmt.Scanln(&rcvmsg)
-	mutex.Lock()
 
 	msgType := findVal(rcvmsg, "Type")
 	sender := findVal(rcvmsg, "Sender")
@@ -181,8 +183,8 @@ func Receive() Message {
 	receiver := findVal(rcvmsg, "Receiver")
 	globalStock := findVal(rcvmsg, "GlobalStock")
 	color := findVal(rcvmsg, "Color")
-	etat := findVal(rcvmsg, "Color")
-	bilan := findVal(rcvmsg, "Color")
+	etat := findVal(rcvmsg, "Etat")
+	bilan := findVal(rcvmsg, "Bilan")
 	prepost := findPrepost(rcvmsg)
 	if msgType != "" {
 		msgTypeRcv, _ = strconv.Atoi(msgType)
@@ -209,7 +211,6 @@ func Receive() Message {
 		bilanRcv, _ = strconv.Atoi(bilan)
 	}
 
-	mutex.Unlock()
 	rcvmsg = ""
 	message := Message{
 		Type:           MessageType(msgTypeRcv),
