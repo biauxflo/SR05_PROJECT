@@ -17,7 +17,8 @@ var couleur utils.Couleur
 var initiateur bool
 var bilan int
 var EG [][]utils.Record
-var stocks []int
+var globalStocks []int
+var localStocks []int
 var prepost []string
 var NbEtatsAttendus int
 var NbMessagesAttendus int
@@ -119,17 +120,14 @@ func handleAck(h int, sender int) {
 	}
 }
 
-func startSnapShot() {
+func startSnapShot(globalStock int, localStock int) {
 	couleur = utils.Rouge
 	initiateur = true
-	EG = make([][]utils.Record, nbSite)
-	for k := 0; k < nbSite; k++ {
-		EG[k] = make([]utils.Record, nbSite)
-	}
 	EG[siteId-1] = Tab
 	NbEtatsAttendus = nbSite - 1
 	NbMessagesAttendus = bilan
-	// TODO : utils.Send(utils.StockRequest, siteId, siteId, -1, -1)
+	globalStocks[siteId] = globalStock
+	localStocks[siteId] = localStock
 	bilan++
 }
 
@@ -139,13 +137,19 @@ func handleEtat(sender int, etat []utils.Record, bilan int) {
 	NbEtatsAttendus--
 
 	if NbMessagesAttendus == 0 && NbEtatsAttendus == 0 {
-		// TODO : FIN
+		l := log.New(os.Stderr, "", 0)
+		l.Println("C'EST FINI ZEBI")
 	}
 }
 
 func handlePrepost(sender int, prepostMessage string) {
 	NbMessagesAttendus--
 	prepost[sender] += prepostMessage + "\n"
+}
+
+func handleStockRequest(globalStock int, localStock int) {
+	//CLOCK = LOCALSTOCK
+	utils.Send(utils.Etat, siteId, siteId, localStock, globalStock, couleur, Tab, bilan, "")
 }
 
 func handleMessage(message utils.Message) {
@@ -165,11 +169,15 @@ func handleMessage(message utils.Message) {
 		bilan--
 		handleAck(message.ClockValue, message.Sender)
 	case utils.SnapStart:
-		startSnapShot()
+		// CLOCK = LOCAL STOCK
+		startSnapShot(message.GlobalStock, message.ClockValue)
 	case utils.Etat:
 		handleEtat(message.Sender, message.Etat, message.Bilan)
 	case utils.Prepost:
 		handlePrepost(message.Sender, message.PrepostMessage)
+	case utils.StockRequest:
+		// CLOCK = LOCAL STOCK
+		handleStockRequest(message.GlobalStock, message.ClockValue)
 	}
 }
 
@@ -185,7 +193,7 @@ func waitMessages() {
 
 		if message.Couleur == utils.Rouge && couleur == utils.Blanc {
 			couleur = utils.Rouge
-			utils.Send(utils.Etat, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
+			utils.Send(utils.StockRequest, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
 		}
 
 		if initiateur == true {
@@ -222,6 +230,14 @@ func main() {
 	for k := 0; k < nbSite; k++ {
 		Tab[k] = utils.Record{utils.Release, 0}
 	}
+
+	EG = make([][]utils.Record, nbSite)
+	for k := 0; k < nbSite; k++ {
+		EG[k] = make([]utils.Record, nbSite)
+	}
+
+	globalStocks = make([]int, nbSite)
+	localStocks = make([]int, nbSite)
 
 	// Initialiser l'horloge
 	horloge = 0

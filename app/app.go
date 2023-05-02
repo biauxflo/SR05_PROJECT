@@ -52,7 +52,7 @@ func compare_seuil_stock() {
 		}
 
 		if globalStock == 0 && !snapshotInProgress && siteId == 1 {
-			utils.Send(utils.SnapStart, siteId, siteId, -1, -1, utils.Neutre, nil, 0, "")
+			utils.Send(utils.SnapStart, siteId, siteId, localStock, globalStock, utils.Neutre, nil, 0, "")
 			snapshotInProgress = true
 		}
 	}
@@ -64,6 +64,10 @@ func handleUpdate(newStock int) {
 	l.Println("Maj du stock global :  " + strconv.Itoa(globalStock))
 }
 
+func handleStockRequest() {
+	utils.Send(utils.StockRequest, siteId, siteId, localStock, globalStock, utils.Neutre, nil, 0, "")
+}
+
 func handleMessage(message utils.Message) {
 
 	// Traiter le message en fonction de son type
@@ -72,6 +76,8 @@ func handleMessage(message utils.Message) {
 		handleSCStart()
 	case utils.SCUpdate:
 		handleUpdate(message.GlobalStock)
+	case utils.StockRequest:
+		handleStockRequest()
 	}
 }
 
