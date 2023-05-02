@@ -63,6 +63,18 @@ func printVec(tab []Record) string {
 	}
 	return resultat
 }
+func parseVec(vec string) []Record {
+	var tab []Record
+	tab = make([]Record, len(vec)/3)
+	for k := 0; k <= len(vec); k += 3 {
+		if k == 0 {
+			tab[k] = Record{MessageType(int(vec[k])), int(vec[k+2])}
+		} else {
+			tab[k/3] = Record{MessageType(int(vec[k])), int(vec[k+2])}
+		}
+	}
+	return tab
+}
 
 func msg_format(key string, val string) string {
 	return fieldsep + key + keyvalsep + val
@@ -72,7 +84,7 @@ func prepost_format(val string) string {
 	return prepostSeparator + "PrepostMessage" + keyvalsep + val + prepostSeparator
 }
 
-func EncodeMessage(msg Message) string {
+func EncodeSimpleMessage(msg Message) string {
 	msgType := msg_format("Type", strconv.Itoa(int(msg.Type)))
 	sender := msg_format("Sender", strconv.Itoa(msg.Sender))
 	receiver := msg_format("Receiver", strconv.Itoa(msg.Receiver))
@@ -81,8 +93,13 @@ func EncodeMessage(msg Message) string {
 	color := msg_format("Color", strconv.Itoa(int(msg.Couleur)))
 	etat := msg_format("Etat", printVec(msg.Etat))
 	bilan := msg_format("Bilan", strconv.Itoa(msg.Bilan))
+	return msgType + sender + receiver + clock + stock + color + etat + bilan
+}
+
+func EncodeMessage(msg Message) string {
+	encodedMsg := EncodeSimpleMessage(msg)
 	prepost := prepost_format(msg.PrepostMessage)
-	return msgType + sender + receiver + clock + stock + color + etat + bilan + prepost
+	return encodedMsg + prepost
 }
 
 func msg_send(msg string) {
@@ -186,7 +203,7 @@ func Receive() Message {
 		colorRcv, _ = strconv.Atoi(color)
 	}
 	if etat != "" {
-		// TODO : Parse etat depuis la string
+		etatRcv = parseVec(etat)
 	}
 	if bilan != "" {
 		bilanRcv, _ = strconv.Atoi(bilan)

@@ -12,7 +12,7 @@ import (
 )
 
 // Initialiser les variables
-var globalStock int = 180
+var globalStock int = 10
 var localStock int = 10
 var seuil int = 5
 var siteId int
@@ -29,7 +29,7 @@ func handleSCStart() {
 	l.Println(strconv.Itoa(siteId) + "-> Livraison effectuée : Nouveau stock : " + strconv.Itoa(localStock) + "- Nouveau stock global: " + strconv.Itoa(globalStock))
 
 	//Envoi de la libération
-	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock)
+	utils.Send(utils.SCEnd, siteId, siteId, -1, globalStock, utils.Neutre, nil, 0, "")
 
 	pendingRequest = false
 }
@@ -45,12 +45,12 @@ func compare_seuil_stock() {
 		r := rand.Intn(5)
 		time.Sleep(time.Duration(r) * time.Second)
 		if localStock < seuil && !pendingRequest {
-			utils.Send(utils.SCRequest, siteId, siteId, -1, -1)
+			utils.Send(utils.SCRequest, siteId, siteId, -1, -1, utils.Neutre, nil, 0, "")
 			pendingRequest = true
 		}
 
 		if globalStock == 0 && !snapshotInProgress && siteId == 1 {
-			utils.Send(utils.SnapStart, siteId, siteId, -1, -1)
+			utils.Send(utils.SnapStart, siteId, siteId, -1, -1, utils.Neutre, nil, 0, "")
 			snapshotInProgress = true
 		}
 	}

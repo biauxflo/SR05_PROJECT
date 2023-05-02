@@ -74,10 +74,10 @@ func handleSCRelease(stock int) {
 func handleRequest(h int, sender int) {
 	horloge = max(horloge, h) + 1
 	Tab[sender-1] = utils.Record{utils.Request, h}
-	utils.Send(utils.ACK, siteId, sender, horloge, -1)
+	utils.Send(utils.ACK, siteId, sender, horloge, -1, couleur, Tab, bilan, "")
 	bilan++
 	if canEnterCriticalSection() {
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
 		bilan++
 	}
 }
@@ -91,12 +91,12 @@ func handleRelease(h int, sender int, globalStock int) {
 	Tab[sender-1] = utils.Record{utils.Release, h}
 
 	// Mettre à jour la valeur du stock dans l'application
-	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock)
+	utils.Send(utils.SCUpdate, siteId, siteId, horloge, globalStock, couleur, Tab, bilan, "")
 
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
 		bilan++
 	}
 }
@@ -114,7 +114,7 @@ func handleAck(h int, sender int) {
 	// Vérifier si la condition pour entrer en section critique est satisfaite
 	if canEnterCriticalSection() {
 		// Si oui, envoyer un message à l'application de base pour commencer la section critique
-		utils.Send(utils.SCStart, siteId, siteId, horloge, -1)
+		utils.Send(utils.SCStart, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
 		bilan++
 	}
 }
@@ -176,12 +176,12 @@ func waitMessages() {
 		l.Println(strconv.Itoa(siteId) + " <-- Type : " + strconv.Itoa(int(message.Type)) + " Sender :  " + strconv.Itoa(message.Sender) + " Clock : " + strconv.Itoa(message.ClockValue))
 
 		if message.Couleur == utils.Blanc && couleur == utils.Rouge {
-			// TODO : Send(utils.Prepost, ...)
+			utils.Send(utils.SCStart, siteId, siteId, horloge, -1, couleur, Tab, bilan, utils.EncodeSimpleMessage(message))
 		}
 
 		if message.Couleur == utils.Rouge && couleur == utils.Blanc {
 			couleur = utils.Rouge
-			// TODO : Send(utils.Etat, Tab, bilan)
+			utils.Send(utils.Etat, siteId, siteId, horloge, -1, couleur, Tab, bilan, "")
 		}
 
 		if initiateur == true {
