@@ -17,6 +17,7 @@ var localStock int = 10
 var seuil int = 5
 var siteId int
 var pendingRequest bool
+var snapshotInProgress bool
 
 func handleSCStart() {
 	//Traitement du stock local et global
@@ -36,7 +37,9 @@ func handleSCStart() {
 func compare_seuil_stock() {
 
 	for {
-		localStock--
+		if localStock > 0 {
+			localStock--
+		}
 		l := log.New(os.Stderr, "", 0)
 		l.Println(strconv.Itoa(siteId) + " " + strconv.Itoa(localStock))
 		r := rand.Intn(5)
@@ -45,8 +48,10 @@ func compare_seuil_stock() {
 			utils.Send(utils.SCRequest, siteId, siteId, -1, -1)
 			pendingRequest = true
 		}
-		if localStock <= 0 {
-			os.Exit(0)
+
+		if globalStock == 0 && !snapshotInProgress && siteId == 1 {
+			utils.Send(utils.SnapStart, siteId, siteId, -1, -1)
+			snapshotInProgress = true
 		}
 	}
 }
